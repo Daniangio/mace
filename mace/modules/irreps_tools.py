@@ -84,3 +84,27 @@ class reshape_irreps(torch.nn.Module):
             field = field.reshape(batch, mul, d)
             out.append(field)
         return torch.cat(out, dim=-1)
+
+
+@compile_mode("script")
+class inverse_reshape_irreps(torch.nn.Module):
+    def __init__(self, irreps) -> None:
+        super().__init__()
+        self.irreps = o3.Irreps(irreps)
+        self.dims = []
+        self.muls = []
+        for mul, ir in self.irreps:
+            d = ir.dim
+            self.dims.append(d)
+            self.muls.append(mul)
+
+    def forward(self, tensor: torch.Tensor) -> torch.Tensor:
+        ix = 0
+        out = []
+        batch, _, _ = tensor.shape
+        for mul, d in zip(self.muls, self.dims):
+            field = tensor[:, :, ix:ix + mul * d]
+            ix += mul * d
+            field = field.reshape(batch, -1)
+            out.append(field)
+        return torch.cat(out, dim=-1)
