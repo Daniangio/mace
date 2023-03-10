@@ -84,6 +84,16 @@ class SymmetricContraction(CodeGenMixin, torch.nn.Module):
 
 
 @compile_mode("script")
+class ParameterModule(torch.nn.Module):
+    def __init__(self, w):
+        super().__init__()
+        self.w = torch.nn.Parameter(w)
+
+    def forward(self):
+        return self.w
+
+
+@compile_mode("script")
 class Contraction(torch.nn.Module):
     def __init__(
         self,
@@ -114,7 +124,8 @@ class Contraction(torch.nn.Module):
         self.contractions_features = torch.nn.ModuleList()
 
         # Create weight for product basis
-        self.weights = torch.nn.ParameterList([])
+        # self.weights = torch.nn.ParameterList([])
+        self.weights = torch.nn.ModuleList()
 
         for i in range(correlation, 0, -1):
             # Shapes definying
@@ -200,11 +211,14 @@ class Contraction(torch.nn.Module):
                 self.contractions_weighting.append(graph_opt_weighting)
                 self.contractions_features.append(graph_opt_features)
                 # Parameters for the product basis
-                w = torch.nn.Parameter(
-                    torch.randn((num_elements, num_params, self.num_features))
-                    / num_params
-                )
-                self.weights.append(w)
+                # w = torch.nn.Parameter(
+                #     torch.randn((num_elements, num_params, self.num_features))
+                #     / num_params
+                # )
+                # self.weights.append(w)
+                w = torch.randn((num_elements, num_params, self.num_features)) / num_params
+                self.weights.append(ParameterModule(w))
+
         if not internal_weights:
             self.weights = weights[:-1]
             self.weights_max = weights[-1]
@@ -221,7 +235,7 @@ class Contraction(torch.nn.Module):
         ):
             c_tensor = contract_weights(
                 self.U_tensors(self.correlation - i - 1),
-                weight,
+                weight(),
                 y,
             )
             c_tensor = c_tensor + out
